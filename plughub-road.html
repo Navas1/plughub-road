@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PlugHub — A Jornada do EV</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ev:#00D084;--ev2:#00A86B;--ev3:#007A4D;
+  --dark:#0A0F0D;--dark2:#111A15;
+  --gold:#FFD700;--amber:#FFA500;--red:#EF4444;
+  --white:#FFFFFF;--muted:rgba(255,255,255,.5);
+  /* safe area dinâmica — fallback 0px para browsers sem suporte */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  /* altura da progress bar = 56px + safe area top */
+  --bar-h: calc(56px + var(--sat));
+}
+body{background:var(--dark);font-family:'Inter',sans-serif;overflow-x:hidden;color:var(--white)}
+
+/* ══════════════════════════════════════════
+   SCREEN SYSTEM
+══════════════════════════════════════════ */
+.screen{display:none;min-height:100vh;flex-direction:column;position:relative;overflow:hidden}
+.screen.active{display:flex}
+
+/* ══════════════════════════════════════════
+   INTRO SCREEN
+══════════════════════════════════════════ */
+#screen-intro{
+  background:radial-gradient(ellipse at 50% 40%,rgba(0,208,132,.1) 0%,var(--dark) 65%);
+  justify-content:center;align-items:center;text-align:center;
+  /* padding lateral respeita bordas arredondadas; top respeita status bar */
+  padding: max(40px, calc(24px + var(--sat))) 24px max(40px, calc(24px + var(--sab)));
+  padding-left: max(24px, calc(16px + var(--sal)));
+  padding-right: max(24px, calc(16px + var(--sar)));
+}
+.intro-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px}
+.intro-icon{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--ev),var(--ev2));display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 12px 40px rgba(0,208,132,.4)}
+.intro-name{font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:800;color:var(--white)}
+.intro-name span{color:var(--ev)}
+.intro-tagline{font-size:14px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:48px}
+.intro-title{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,5vw,48px);font-weight:800;line-height:1.1;margin-bottom:16px}
+.intro-title .acc{color:var(--ev)}
+.intro-sub{font-size:16px;color:rgba(255,255,255,.55);max-width:500px;line-height:1.6;margin:0 auto 48px}
+.btn-start{background:linear-gradient(135deg,var(--ev),var(--ev2));color:var(--white);border:none;border-radius:99px;padding:18px 48px;font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 12px 40px rgba(0,208,132,.4);transition:all .2s;display:flex;align-items:center;gap:10px;margin:0 auto}
+.btn-start:hover{transform:translateY(-3px);box-shadow:0 18px 50px rgba(0,208,132,.5)}
+.intro-stats{display:flex;gap:32px;justify-content:center;flex-wrap:wrap;margin-top:48px}
+.intro-stat .n{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;color:var(--ev)}
+.intro-stat .l{font-size:11px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+
+/* ══════════════════════════════════════════
+   ROAD SCREEN
+══════════════════════════════════════════ */
+#screen-road{background:var(--dark2);flex-direction:column}
+
+/* Progress bar — fixed, ocupa safe area + 56px de conteúdo */
+.progress-bar{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  z-index:100;
+  background:rgba(10,15,13,.95);
+  backdrop-filter:blur(10px);
+  /* padding-top absorve a status bar do Android/iOS */
+  padding-top: max(10px, calc(var(--sat) + 6px));
+  padding-bottom: 10px;
+  padding-left: max(20px, calc(var(--sal) + 16px));
+  padding-right: max(20px, calc(var(--sar) + 16px));
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  /* altura total dinâmica para cálculos externos */
+  min-height: var(--bar-h);
+}
+.progress-logo{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:var(--white);white-space:nowrap}
+.progress-logo span{color:var(--ev)}
+.progress-track{flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--ev),var(--gold));border-radius:99px;transition:width 1s ease;width:0%}
+.progress-step{font-size:11px;color:var(--muted);white-space:nowrap;font-family:'Space Grotesk',sans-serif;font-weight:600}
+
+/* Road scene — padding-top = altura exata da barra fixa */
+.road-scene{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  padding-top: var(--bar-h);
+  position:relative;
+  min-height:100vh;
+}
+
+/* Sky */
+.sky{height:180px;background:linear-gradient(180deg,#0a1628 0%,#0f2040 60%,#1a3a5c 100%);position:relative;flex-shrink:0;overflow:hidden}
+.stars{position:absolute;inset:0}
+.star{position:absolute;background:white;border-radius:50%;animation:twinkle 3s infinite}
+@keyframes twinkle{0%,100%{opacity:.8}50%{opacity:.2}}
+.moon{position:absolute;top:24px;right:60px;width:40px;height:40px;background:radial-gradient(circle at 35% 35%,#fffde7,#fff9c4);border-radius:50%;box-shadow:0 0 20px rgba(255,253,231,.3)}
+.city-silhouette{position:absolute;bottom:0;width:100%;height:80px}
+
+/* Road */
+.road-area{flex:1;position:relative;min-height:300px}
+.asphalt{position:absolute;inset:0;background:linear-gradient(180deg,#1a2a20 0%,#243028 40%,#2a3830 100%)}
+.lane-marks{position:absolute;bottom:100px;left:0;right:0;height:6px;display:flex;gap:0;overflow:hidden}
+.lane-mark{height:6px;background:rgba(255,220,50,.6);border-radius:2px;margin-right:32px;flex-shrink:0;animation:roadMove 1.5s linear infinite}
+@keyframes roadMove{from{transform:translateX(0)}to{transform:translateX(-80px)}}
+.road-edge-left,.road-edge-right{position:absolute;bottom:0;width:6px;top:0;background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.05))}
+.road-edge-left{left:40px}
+.road-edge-right{right:40px}
+.ground-left,.ground-right{position:absolute;top:0;bottom:0;width:40px;background:linear-gradient(90deg,#1a3020,#243028)}
+.ground-left{left:0}
+.ground-right{right:0}
+.trees{position:absolute;top:30px;left:0;right:0;display:flex;justify-content:space-around;pointer-events:none}
+.tree{font-size:32px;filter:brightness(.6);animation:treeBob 4s ease-in-out infinite}
+@keyframes treeBob{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.03)}}
+
+/* EV Car */
+.ev-car{position:absolute;bottom:110px;left:60px;transition:left 1.2s cubic-bezier(.4,0,.2,1),transform .3s;z-index:20;filter:drop-shadow(0 8px 20px rgba(0,208,132,.4))}
+.ev-car svg{width:90px;height:auto}
+.headlight-beam{position:absolute;right:-40px;top:12px;width:50px;height:14px;background:linear-gradient(90deg,rgba(255,255,200,.5),transparent);border-radius:0 99px 99px 0;pointer-events:none}
+@keyframes carBump{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.ev-car{animation:carBump 0.8s ease-in-out infinite}
+.ev-car.moving{animation:none}
+.ev-car.braking{transform:perspective(200px) rotateX(4deg)}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.wheel{animation:spin 0.5s linear infinite}
+.ev-car.braking .wheel{animation:none}
+.dust{position:absolute;bottom:108px;left:50px;pointer-events:none}
+.dust-p{position:absolute;width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.15);animation:dustAnim 1s ease-out infinite}
+@keyframes dustAnim{0%{transform:translate(0,0) scale(1);opacity:.5}100%{transform:translate(-30px,-10px) scale(0);opacity:0}}
+.dust-p:nth-child(2){animation-delay:.3s}
+.dust-p:nth-child(3){animation-delay:.6s}
+
+/* Toll booth */
+.toll{position:absolute;bottom:0;right:0;width:160px;display:flex;flex-direction:column;align-items:center;z-index:15;transition:transform .5s}
+.toll.hidden{transform:translateX(200px)}
+.toll-gate{width:140px;background:linear-gradient(180deg,#2a2a2a,#1a1a1a);border-radius:12px 12px 0 0;padding:12px 8px;text-align:center;border:1px solid rgba(255,255,255,.1);border-bottom:none}
+.toll-sign{background:var(--red);color:white;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;padding:4px 10px;border-radius:6px;letter-spacing:.08em;margin-bottom:8px;display:inline-block}
+.toll-sign.open{background:var(--ev)}
+.toll-number{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:800;color:var(--gold);line-height:1}
+.toll-label{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.toll-barrier{width:120px;height:14px;border-radius:4px;background:linear-gradient(90deg,#e53e3e,#fff 20%,#e53e3e 40%,#fff 60%,#e53e3e 80%,#fff);transform-origin:left center;transition:transform .8s cubic-bezier(.4,0,.2,1);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.toll-barrier.open{transform:rotate(-75deg)}
+.toll-pole{width:14px;height:80px;background:linear-gradient(180deg,#666,#444);border-radius:4px 4px 0 0}
+
+/* Destination */
+.destination{position:absolute;bottom:0;right:-300px;width:200px;display:flex;flex-direction:column;align-items:center;z-index:15;transition:right 1s ease}
+.destination.show{right:20px}
+.dest-building{width:170px;background:linear-gradient(180deg,var(--dark),var(--dark2));border:2px solid var(--ev);border-radius:16px 16px 0 0;padding:16px;text-align:center}
+.dest-icon{font-size:36px;margin-bottom:8px}
+.dest-name{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:800;color:var(--ev)}
+.dest-sub{font-size:10px;color:rgba(255,255,255,.4);margin-top:2px}
+.dest-glow{position:absolute;inset:-20px;background:radial-gradient(ellipse,rgba(0,208,132,.2),transparent 70%);pointer-events:none;border-radius:50%;animation:destGlow 2s ease-in-out infinite}
+@keyframes destGlow{0%,100%{opacity:.6;transform:scale(1)}50%{opacity:1;transform:scale(1.1)}}
+
+/* ══════════════════════════════════════════
+   PROBLEM PANEL
+══════════════════════════════════════════ */
+.panel-overlay{
+  position:fixed;
+  inset:0;
+  z-index:200;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  /* padding-top = barra do Chrome (~56px) + status bar + folga de 8px
+     Isso garante que o topo do painel nunca fique escondido atrás da UI do browser */
+  padding-top: max(72px, calc(var(--sat) + 64px));
+  padding-bottom: max(16px, calc(var(--sab) + 8px));
+  padding-left: max(16px, calc(var(--sal) + 8px));
+  padding-right: max(16px, calc(var(--sar) + 8px));
+  background:rgba(0,0,0,.7);
+  backdrop-filter:blur(4px);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .4s;
+}
+.panel-overlay.show{opacity:1;pointer-events:all}
+.panel{
+  background:var(--dark);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:24px 24px 16px 16px;
+  width:100%;
+  max-width:520px;
+  /* limite de altura = tela inteira menos o padding-top do overlay */
+  max-height: calc(100vh - max(72px, calc(var(--sat) + 64px)) - max(16px, calc(var(--sab) + 8px)));
+  /* scroll interno quando o conteúdo for longo */
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  transform:translateY(60px);
+  transition:transform .4s cubic-bezier(.4,0,.2,1);
+}
+.panel-overlay.show .panel{transform:translateY(0)}
+
+/* Problem panel */
+.panel-problem{border-top:4px solid var(--red)}
+.panel-head{padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.panel-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:99px;padding:4px 14px;font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.panel-title{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;line-height:1.2;margin-bottom:6px}
+.panel-stat{font-size:13px;color:rgba(255,255,255,.5);line-height:1.5}
+.panel-stat strong{color:var(--gold)}
+.panel-body{padding:16px 24px 20px}
+.panel-desc{font-size:13px;color:rgba(255,255,255,.65);line-height:1.6;margin-bottom:16px}
+.btn-solve{width:100%;padding:14px;background:linear-gradient(135deg,var(--red),#c53030);color:white;border:none;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-solve:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(239,68,68,.4)}
+
+/* Solution panel */
+.panel-solution{border-top:4px solid var(--ev)}
+.panel-solution .panel-tag{background:rgba(0,208,132,.12);border-color:rgba(0,208,132,.3);color:var(--ev)}
+.solution-items{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.solution-item{display:flex;align-items:flex-start;gap:10px;background:rgba(0,208,132,.06);border:1px solid rgba(0,208,132,.15);border-radius:10px;padding:12px}
+.solution-icon{font-size:20px;flex-shrink:0}
+.solution-text{font-size:12px;color:rgba(255,255,255,.7);line-height:1.5}
+.solution-text strong{color:var(--white);display:block;margin-bottom:2px;font-size:13px}
+.solution-metric{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.metric-pill{background:rgba(0,208,132,.1);border:1px solid rgba(0,208,132,.2);border-radius:8px;padding:6px 12px;text-align:center}
+.metric-pill .mn{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:800;color:var(--ev)}
+.metric-pill .ml{font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em}
+.btn-pass{width:100%;padding:14px;background:linear-gradient(135deg,var(--ev),var(--ev2));color:white;border:none;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-pass:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,208,132,.4)}
+
+/* ══════════════════════════════════════════
+   FINAL SCREEN
+══════════════════════════════════════════ */
+#screen-final{
+  background:radial-gradient(ellipse at 50% 30%,rgba(0,208,132,.15),var(--dark) 65%);
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  /* safe area nos quatro lados */
+  padding: max(40px, calc(24px + var(--sat))) max(24px, calc(16px + var(--sar))) max(40px, calc(24px + var(--sab))) max(24px, calc(16px + var(--sal)));
+}
+.final-celebration{font-size:56px;margin-bottom:16px;animation:celebrate 1s ease-in-out infinite alternate}
+@keyframes celebrate{from{transform:scale(1) rotate(-5deg)}to{transform:scale(1.1) rotate(5deg)}}
+.final-title{font-family:'Space Grotesk',sans-serif;font-size:clamp(28px,6vw,52px);font-weight:800;margin-bottom:8px}
+.final-title .acc{color:var(--ev)}
+.final-sub{font-size:15px;color:rgba(255,255,255,.5);max-width:480px;line-height:1.6;margin:0 auto 40px}
+.final-metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:420px;margin:0 auto 40px}
+.final-metric{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px}
+.final-metric .n{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:800;color:var(--ev)}
+.final-metric .l{font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.final-ask{background:rgba(0,208,132,.06);border:1px solid rgba(0,208,132,.2);border-radius:16px;padding:24px;max-width:420px;margin:0 auto 32px}
+.final-ask-amount{font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:800;color:var(--ev);margin-bottom:4px}
+.final-ask-label{font-size:12px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+.final-ask-items{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center}
+.final-ask-item .a{font-size:15px;font-weight:700;color:var(--white)}
+.final-ask-item .l{font-size:10px;color:rgba(255,255,255,.35);margin-top:2px}
+.btn-restart{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.6);border-radius:99px;padding:12px 28px;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-restart:hover{border-color:var(--ev);color:var(--ev)}
+
+/* ══════════════════════════════════════════
+   HUD — toll counter
+══════════════════════════════════════════ */
+.hud{
+  position:fixed;
+  bottom: max(20px, calc(var(--sab) + 12px));
+  left: max(20px, calc(var(--sal) + 12px));
+  z-index:150;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.hud-item{background:rgba(10,15,13,.9);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:6px 12px;font-size:11px;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:5px;backdrop-filter:blur(8px)}
+.hud-item .hi{font-size:13px}
+.hud-item.solved{border-color:rgba(0,208,132,.3);color:var(--ev)}
+
+/* checkmark toast */
+.toast{
+  position:fixed;
+  top: max(70px, calc(var(--sat) + 64px));
+  left:50%;
+  transform:translateX(-50%) translateY(-20px);
+  background:var(--ev);
+  color:#fff;
+  border-radius:99px;
+  padding:10px 24px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:14px;
+  font-weight:700;
+  opacity:0;
+  transition:all .4s;
+  z-index:500;
+  white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 1 — INTRO
+══════════════════════════════════════════ -->
+<div class="screen active" id="screen-intro">
+  <div class="intro-logo">
+    <div class="intro-icon">⚡</div>
+    <div class="intro-name">Plug<span>Hub</span></div>
+  </div>
+  <div class="intro-tagline">O Banco Central da Bateria EV</div>
+  <h1 class="intro-title">Uma estrada com <span class="acc">pedágios</span><br>e um EV que precisa passar</h1>
+  <p class="intro-sub">Cada pedágio é um obstáculo real do mercado de EVs usados. Descubra como o PlugHub resolve cada um — e onde chegamos no final.</p>
+  <button class="btn-start" onclick="startJourney()">
+    <span>⚡</span> Iniciar a Jornada
+  </button>
+  <div class="intro-stats">
+    <div class="intro-stat"><div class="n">52.000</div><div class="l">EVs em SP</div></div>
+    <div class="intro-stat"><div class="n">R$ 4bi</div><div class="l">Mercado/ano</div></div>
+    <div class="intro-stat"><div class="n">80%</div><div class="l">Com medo de comprar</div></div>
+    <div class="intro-stat"><div class="n">5</div><div class="l">Pedágios para superar</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 2 — ROAD
+══════════════════════════════════════════ -->
+<div class="screen" id="screen-road">
+
+  <!-- Progress -->
+  <div class="progress-bar">
+    <div class="progress-logo">Plug<span>Hub</span></div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-step" id="progress-step">Pedágio 1 de 5</div>
+  </div>
+
+  <!-- Road scene -->
+  <div class="road-scene">
+    <!-- Sky -->
+    <div class="sky">
+      <div class="stars" id="stars"></div>
+      <div class="moon"></div>
+      <svg class="city-silhouette" viewBox="0 0 800 80" preserveAspectRatio="none" fill="none">
+        <rect x="0" y="40" width="800" height="80" fill="#0d1a10"/>
+        <rect x="20" y="20" width="30" height="60" fill="#0d1a10"/>
+        <rect x="60" y="30" width="20" height="50" fill="#0d1a10"/>
+        <rect x="90" y="10" width="40" height="70" fill="#0d1a10"/>
+        <rect x="140" y="25" width="25" height="55" fill="#0d1a10"/>
+        <rect x="175" y="35" width="35" height="45" fill="#0d1a10"/>
+        <rect x="220" y="15" width="30" height="65" fill="#0d1a10"/>
+        <rect x="260" y="28" width="22" height="52" fill="#0d1a10"/>
+        <rect x="300" y="5" width="45" height="75" fill="#0d1a10"/>
+        <rect x="355" y="20" width="28" height="60" fill="#0d1a10"/>
+        <rect x="393" y="32" width="32" height="48" fill="#0d1a10"/>
+        <rect x="435" y="12" width="38" height="68" fill="#0d1a10"/>
+        <rect x="483" y="22" width="24" height="58" fill="#0d1a10"/>
+        <rect x="517" y="8" width="42" height="72" fill="#0d1a10"/>
+        <rect x="569" y="28" width="26" height="52" fill="#0d1a10"/>
+        <rect x="605" y="18" width="34" height="62" fill="#0d1a10"/>
+        <rect x="649" y="32" width="20" height="48" fill="#0d1a10"/>
+        <rect x="679" y="14" width="36" height="66" fill="#0d1a10"/>
+        <rect x="725" y="25" width="30" height="55" fill="#0d1a10"/>
+        <rect x="765" y="38" width="28" height="42" fill="#0d1a10"/>
+      </svg>
+    </div>
+
+    <!-- Road area -->
+    <div class="road-area">
+      <div class="asphalt"></div>
+      <div class="ground-left"></div>
+      <div class="ground-right"></div>
+      <div class="road-edge-left"></div>
+      <div class="road-edge-right"></div>
+
+      <div class="lane-marks" id="lane-marks">
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+        <div class="lane-mark" style="width:48px"></div>
+      </div>
+
+      <div class="trees">
+        <span class="tree" style="animation-delay:0s">🌲</span>
+        <span class="tree" style="animation-delay:.5s">🌳</span>
+        <span class="tree" style="animation-delay:1s">🌲</span>
+        <span class="tree" style="animation-delay:1.5s">🌳</span>
+        <span class="tree" style="animation-delay:.8s">🌲</span>
+      </div>
+
+      <!-- EV Car -->
+      <div class="ev-car" id="ev-car">
+        <div class="headlight-beam"></div>
+        <svg width="100" height="50" viewBox="0 0 100 50">
+          <rect x="5" y="20" width="88" height="24" rx="6" fill="#00a03e"/>
+          <rect x="22" y="8" width="52" height="16" rx="8" fill="#007830"/>
+          <rect x="26" y="11" width="18" height="11" rx="3" fill="#b3e5fc" opacity=".9"/>
+          <rect x="48" y="11" width="20" height="11" rx="3" fill="#b3e5fc" opacity=".9"/>
+          <rect x="88" y="24" width="8" height="7" rx="2" fill="#fff9c4"/>
+          <rect x="88" y="24" width="8" height="7" rx="2" fill="#ffff88" opacity=".7"/>
+          <rect x="4" y="24" width="6" height="7" rx="2" fill="#ef5350"/>
+          <circle class="wheel" cx="24" cy="44" r="8" fill="#1a1a1a"/>
+          <circle cx="24" cy="44" r="4" fill="#555"/>
+          <circle class="wheel" cx="74" cy="44" r="8" fill="#1a1a1a"/>
+          <circle cx="74" cy="44" r="4" fill="#555"/>
+          <circle cx="5" cy="30" r="3" fill="#00ff88" opacity=".8"/>
+          <text x="50" y="34" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.5)" font-family="Inter">PH</text>
+        </svg>
+      </div>
+
+      <div class="dust">
+        <div class="dust-p"></div>
+        <div class="dust-p"></div>
+        <div class="dust-p"></div>
+      </div>
+
+      <!-- Toll booth -->
+      <div class="toll hidden" id="toll">
+        <div class="toll-gate">
+          <div class="toll-sign" id="toll-sign">PEDÁGIO</div>
+          <div class="toll-number" id="toll-number">1</div>
+          <div class="toll-label" id="toll-label">de 5</div>
+        </div>
+        <div class="toll-barrier" id="toll-barrier"></div>
+        <div class="toll-pole"></div>
+      </div>
+
+      <!-- Destination -->
+      <div class="destination" id="destination">
+        <div style="position:relative">
+          <div class="dest-glow"></div>
+          <div class="dest-building">
+            <div class="dest-icon">⚡</div>
+            <div class="dest-name">PlugHub</div>
+            <div class="dest-sub">Hub Completo · Destino Final</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div class="hud" id="hud"></div>
+
+</div>
+
+<!-- PROBLEM PANEL -->
+<div class="panel-overlay" id="panel-overlay">
+  <div class="panel" id="panel-content"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 3 — FINAL
+══════════════════════════════════════════ -->
+<div class="screen" id="screen-final">
+  <div class="final-celebration">🏆</div>
+  <h1 class="final-title">Todos os pedágios <span class="acc">superados!</span></h1>
+  <p class="final-sub">O PlugHub chegou ao destino. Com laudo SOH, marketplace, seguro, tomada P2P e recompra garantida, o ecossistema está completo.</p>
+  <div class="final-metrics">
+    <div class="final-metric"><div class="n">R$ 4bi</div><div class="l">Mercado endereçável SP</div></div>
+    <div class="final-metric"><div class="n">237x</div><div class="l">LTV / CAC ratio</div></div>
+    <div class="final-metric"><div class="n">R$ 21MM</div><div class="l">Lucro/ano (35% share)</div></div>
+    <div class="final-metric"><div class="n">R$105–168MM</div><div class="l">Valuation estimado</div></div>
+  </div>
+  <div class="final-ask">
+    <div class="final-ask-amount">R$ 500k</div>
+    <div class="final-ask-label">Investimento solicitado — Seed Round 2026</div>
+    <div class="final-ask-items">
+      <div class="final-ask-item"><div class="a">R$ 150k</div><div class="l">Produto & Tech</div></div>
+      <div class="final-ask-item"><div class="a">R$ 200k</div><div class="l">Go-to-Market</div></div>
+      <div class="final-ask-item"><div class="a">R$ 150k</div><div class="l">Legal & Ops</div></div>
+    </div>
+  </div>
+  <button class="btn-restart" onclick="restartJourney()">↺ Recomeçar a jornada</button>
+</div>
+
+<script>
+const tolls = [
+  {
+    id: 1,
+    icon: '🔋',
+    problem: 'Bateria Viciada?',
+    tag: '⚠️ Pedágio 1 — Desconfiança',
+    stat: '<strong>80% dos compradores</strong> têm medo de comprar EV usado sem saber a saúde real da bateria. Desvalorização de <strong>40–50% em 12 meses</strong>.',
+    desc: 'O maior medo do mercado secundário. Sem um laudo técnico e confiável, o vendedor sempre perde na negociação e o comprador fica em dúvida para sempre.',
+    solutionTag: '✅ Solução: Laudo SOH Certificado',
+    solutionTitle: 'Laudo SOH com Hash Blockchain',
+    items: [
+      { icon: '🔬', title: 'Diagnóstico OBD2 em tempo real', text: 'Dongle ELM327 + app PlugHub. Resultado em minutos direto no celular do vendedor.' },
+      { icon: '📋', title: 'PDF com hash imutável', text: 'Laudo certificado no Polygon (R$ 0,01). Impossível falsificar. Prova judicial.' },
+      { icon: '💡', title: 'Grátis se anunciar no app', text: 'R$ 197 avulso ou grátis para quem lista no marketplace. CAC zero para o usuário.' }
+    ],
+    metrics: [{ n: '98%', l: 'Margem' }, { n: 'R$ 0,01', l: 'Cert. blockchain' }, { n: '15min', l: 'Tempo do laudo' }],
+    hudLabel: '🔋 Laudo SOH'
+  },
+  {
+    id: 2,
+    icon: '⚡',
+    problem: 'Onde Carrego?',
+    tag: '⚠️ Pedágio 2 — Infraestrutura',
+    stat: 'Apenas <strong>1 posto de carga</strong> para cada <strong>847 EVs</strong> no Brasil. O comprador quer saber onde vai carregar antes de comprar.',
+    desc: 'A falta de infraestrutura de carga é o segundo maior bloqueio à compra de EVs usados. Sem saber onde carregar, a pessoa desiste da compra.',
+    solutionTag: '✅ Solução: Tomada P2P sem CAPEX',
+    solutionTitle: 'Rede de Tomadas Alugadas',
+    items: [
+      { icon: '🏠', title: 'Qualquer tomada vira posto', text: 'Comprador instala ESP32 + hardware R$ 40 e aluga sua tomada para outros EVs. Sem CAPEX da PlugHub.' },
+      { icon: '⚡', title: 'R$ 3 + 10% do kWh consumido', text: 'Anfitrião ganha renda passiva. PlugHub ganha 10%. Efeito rede impossível de replicar.' },
+      { icon: '📍', title: 'Mapa integrado no app', text: 'Comprador vê tomadas disponíveis antes de fechar o negócio. Bloqueio eliminado.' }
+    ],
+    metrics: [{ n: '92%', l: 'Margem' }, { n: 'R$ 40', l: 'Hardware' }, { n: '500+', l: 'Tomadas meta' }],
+    hudLabel: '⚡ Tomada P2P'
+  },
+  {
+    id: 3,
+    icon: '🛡️',
+    problem: 'Seguro Absurdo',
+    tag: '⚠️ Pedágio 3 — Custo do Seguro',
+    stat: 'Seguro de EV custa até <strong>R$ 12.000/ano</strong> — 3x mais que um carro a combustão equivalente. Seguradoras precificam no escuro sem dados de SOH.',
+    desc: 'Com o custo do seguro, a conta do EV usado não fecha para muitos compradores. O problema é a falta de dados — e só o PlugHub tem esses dados.',
+    solutionTag: '✅ Solução: Score SOH para Seguradoras',
+    solutionTitle: 'API de Risco para Seguradoras',
+    items: [
+      { icon: '📊', title: 'Score SOH como dado de risco', text: 'Bateria 95% de saúde = risco baixo. Seguradoras oferecem desconto de até 40% com nosso laudo.' },
+      { icon: '🤝', title: 'Porto Seguro, Youse, Azul', text: 'Comissão de 15% por apólice gerada via score PlugHub. Margem 95%. Zero risco atuarial para nós.' },
+      { icon: '🏦', title: 'API para financeiras', text: 'Bradesco, Itaú, BV cobram R$ 15–30/consulta de SOH para aprovar financiamento de EV usado.' }
+    ],
+    metrics: [{ n: '15%', l: 'Comissão' }, { n: '-40%', l: 'Desconto seguro' }, { n: '95%', l: 'Margem' }],
+    hudLabel: '🛡️ Score Seguro'
+  },
+  {
+    id: 4,
+    icon: '🤝',
+    problem: 'Não Confio no Vendedor',
+    tag: '⚠️ Pedágio 4 — Falta de Confiança',
+    stat: '<strong>1.100 EVs usados/mês</strong> em SP sem nenhuma plataforma de certificação. O comprador não tem como verificar o histórico do carro nem a idoneidade do vendedor.',
+    desc: 'Sem um marketplace de confiança, a venda acontece em grupos de WhatsApp, OLX e conversas diretas — sem garantia, sem rastreabilidade, sem segurança.',
+    solutionTag: '✅ Solução: Marketplace com Escrow',
+    solutionTitle: 'Marketplace Certificado PlugHub',
+    items: [
+      { icon: '🛒', title: 'Anúncio com laudo SOH visível', text: 'Comprador filtra por SOH mínimo. Todos os carros têm laudo certificado. Transparência total.' },
+      { icon: '💳', title: 'Escrow via Asaas (licença BC)', text: 'Dinheiro retido até entrega confirmada. Split automático. Nenhuma das partes corre risco.' },
+      { icon: '⭐', title: 'Avaliação do vendedor', text: '3–5% de comissão sobre o valor do carro. R$ 160MM de GMV/mês só em SP.' }
+    ],
+    metrics: [{ n: '3–5%', l: 'Comissão' }, { n: '85%', l: 'Margem' }, { n: 'R$160MM', l: 'GMV/mês SP' }],
+    hudLabel: '🤝 Marketplace'
+  },
+  {
+    id: 5,
+    icon: '🔄',
+    problem: 'LTV Baixo — Cliente Some',
+    tag: '⚠️ Pedágio 5 — Receita Única',
+    stat: 'A maioria das plataformas ganha <strong>1 vez por carro</strong>. Depois da venda, o cliente some. O custo de aquisição não se paga.',
+    desc: 'Sem recorrência, o negócio vira um ciclo interminável de aquisição de novos clientes. O único jeito de escalar é fazer o mesmo cliente gerar múltiplas receitas.',
+    solutionTag: '✅ Solução: Ciclo de 5 Receitas',
+    solutionTitle: '1 Carro = 5 Receitas em 24 Meses',
+    items: [
+      { icon: '🔁', title: 'Recompra Garantida em 24 meses', text: 'PlugHub garante recompra com spread de 6–8%. Comprador vira vendedor. Ciclo reinicia com CAC zero.' },
+      { icon: '📱', title: 'Monitoramento mensal da bateria', text: 'R$ 19/mês para acompanhar degradação em tempo real. LTV recorrente enquanto o cliente tem o carro.' },
+      { icon: '💰', title: 'CAC 1x → LTV 237x', text: 'Laudo + marketplace + seguro + tomada + recompra = 5 receitas do mesmo cliente em 24 meses.' }
+    ],
+    metrics: [{ n: '237x', l: 'LTV / CAC' }, { n: '5', l: 'Receitas/carro' }, { n: '24m', l: 'Ciclo completo' }],
+    hudLabel: '🔄 Recorrência'
+  }
+];
+
+let currentToll = 0;
+
+function createStars() {
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${Math.random()*2+1}px;height:${Math.random()*2+1}px;animation-delay:${Math.random()*3}s;animation-duration:${2+Math.random()*3}s`;
+    container.appendChild(s);
+  }
+}
+
+function startJourney() {
+  document.getElementById('screen-intro').classList.remove('active');
+  document.getElementById('screen-road').classList.add('active');
+  createStars();
+  updateHUD();
+  setTimeout(() => approachToll(0), 1200);
+}
+
+function updateProgress() {
+  const pct = (currentToll / tolls.length) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  if (currentToll < tolls.length) {
+    document.getElementById('progress-step').textContent = `Pedágio ${currentToll + 1} de ${tolls.length}`;
+  } else {
+    document.getElementById('progress-step').textContent = '🏁 Destino alcançado!';
+  }
+}
+
+function approachToll(index) {
+  if (index >= tolls.length) { finishJourney(); return; }
+  currentToll = index;
+  updateProgress();
+  const toll = tolls[index];
+
+  const tollEl = document.getElementById('toll');
+  document.getElementById('toll-number').textContent = toll.id;
+  document.getElementById('toll-sign').textContent = 'PEDÁGIO';
+  document.getElementById('toll-sign').className = 'toll-sign';
+  document.getElementById('toll-barrier').classList.remove('open');
+  tollEl.classList.remove('hidden');
+
+  const car = document.getElementById('ev-car');
+  const screenW = window.innerWidth;
+  const midPos = screenW * 0.55;
+  car.classList.add('moving');
+  car.style.left = midPos + 'px';
+
+  setTimeout(() => {
+    car.classList.remove('moving');
+    car.classList.add('braking');
+    const lanes = document.getElementById('lane-marks');
+    lanes.querySelectorAll('.lane-mark').forEach(m => m.style.animationPlayState = 'paused');
+    setTimeout(() => showProblemPanel(toll), 600);
+  }, 1200);
+}
+
+function showProblemPanel(toll) {
+  const content = document.getElementById('panel-content');
+  content.className = 'panel panel-problem';
+  content.innerHTML = `
+    <div class="panel-head">
+      <div class="panel-tag">⛔ Obstáculo ${toll.id} de ${tolls.length}</div>
+      <div class="panel-title">${toll.icon} ${toll.problem}</div>
+      <div class="panel-stat">${toll.stat}</div>
+    </div>
+    <div class="panel-body">
+      <div class="panel-desc">${toll.desc}</div>
+      <button class="btn-solve" onclick="showSolutionPanel()">
+        🔧 Ver a solução do PlugHub
+      </button>
+    </div>`;
+  document.getElementById('panel-overlay').classList.add('show');
+}
+
+function showSolutionPanel() {
+  const toll = tolls[currentToll];
+  const content = document.getElementById('panel-content');
+  content.className = 'panel panel-solution';
+
+  const itemsHTML = toll.items.map(item => `
+    <div class="solution-item">
+      <div class="solution-icon">${item.icon}</div>
+      <div class="solution-text">
+        <strong>${item.title}</strong>
+        ${item.text}
+      </div>
+    </div>`).join('');
+
+  const metricsHTML = toll.metrics.map(m => `
+    <div class="metric-pill">
+      <div class="mn">${m.n}</div>
+      <div class="ml">${m.l}</div>
+    </div>`).join('');
+
+  content.innerHTML = `
+    <div class="panel-head">
+      <div class="panel-tag">${toll.solutionTag}</div>
+      <div class="panel-title">✅ ${toll.solutionTitle}</div>
+    </div>
+    <div class="panel-body">
+      <div class="solution-items">${itemsHTML}</div>
+      <div class="solution-metric">${metricsHTML}</div>
+      <button class="btn-pass" onclick="passThrough()">
+        ⚡ Passar pelo pedágio →
+      </button>
+    </div>`;
+}
+
+function passThrough() {
+  document.getElementById('panel-overlay').classList.remove('show');
+  document.getElementById('toll-barrier').classList.add('open');
+  document.getElementById('toll-sign').textContent = 'LIVRE';
+  document.getElementById('toll-sign').className = 'toll-sign open';
+  showToast(`✅ ${tolls[currentToll].hudLabel} — Pedágio liberado!`);
+  updateHUD(currentToll);
+
+  const lanes = document.getElementById('lane-marks');
+  lanes.querySelectorAll('.lane-mark').forEach(m => m.style.animationPlayState = 'running');
+
+  const car = document.getElementById('ev-car');
+  car.classList.remove('braking');
+  car.classList.add('moving');
+
+  const screenW = window.innerWidth;
+  setTimeout(() => {
+    car.style.left = (screenW * 0.15) + 'px';
+    setTimeout(() => {
+      document.getElementById('toll').classList.add('hidden');
+      lanes.querySelectorAll('.lane-mark').forEach(m => m.style.animationPlayState = 'paused');
+      car.classList.remove('moving');
+      const next = currentToll + 1;
+      if (next < tolls.length) {
+        setTimeout(() => approachToll(next), 800);
+      } else {
+        setTimeout(() => finishJourney(), 800);
+      }
+    }, 1200);
+  }, 300);
+}
+
+function finishJourney() {
+  updateProgress();
+  document.getElementById('destination').classList.add('show');
+  const car = document.getElementById('ev-car');
+  car.classList.add('moving');
+  const screenW = window.innerWidth;
+  const lanes = document.getElementById('lane-marks');
+  lanes.querySelectorAll('.lane-mark').forEach(m => m.style.animationPlayState = 'running');
+  setTimeout(() => {
+    car.style.left = (screenW * 0.65) + 'px';
+    setTimeout(() => {
+      car.classList.remove('moving');
+      lanes.querySelectorAll('.lane-mark').forEach(m => m.style.animationPlayState = 'paused');
+      showToast('🏆 PlugHub chegou ao destino!');
+      setTimeout(() => {
+        document.getElementById('screen-road').classList.remove('active');
+        document.getElementById('screen-final').classList.add('active');
+      }, 2000);
+    }, 1400);
+  }, 400);
+}
+
+function updateHUD(solvedIndex) {
+  const hud = document.getElementById('hud');
+  hud.innerHTML = '';
+  tolls.forEach((t, i) => {
+    const item = document.createElement('div');
+    item.className = 'hud-item' + (solvedIndex !== undefined && i <= solvedIndex ? ' solved' : '');
+    item.innerHTML = `<span class="hi">${t.icon}</span> ${t.hudLabel}`;
+    hud.appendChild(item);
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function restartJourney() {
+  currentToll = 0;
+  const car = document.getElementById('ev-car');
+  car.style.left = '60px';
+  car.classList.remove('moving','braking');
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('progress-step').textContent = 'Pedágio 1 de 5';
+  document.getElementById('toll').classList.add('hidden');
+  document.getElementById('toll-barrier').classList.remove('open');
+  document.getElementById('destination').classList.remove('show');
+  document.getElementById('panel-overlay').classList.remove('show');
+  updateHUD();
+  const lanes = document.getElementById('lane-marks');
+  lanes.querySelectorAll('.lane-mark').forEach(m => m.style.animationPlayState = 'paused');
+  document.getElementById('screen-final').classList.remove('active');
+  document.getElementById('screen-intro').classList.add('active');
+}
+</script>
+</body>
+</html>
